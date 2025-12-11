@@ -33,3 +33,7 @@ main
 # OS files
 .DS_Store
 Thumbs.db
+
+# External third-party sources / builds
+external/
+nature02063.pdf

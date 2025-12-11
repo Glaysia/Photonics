@@ -1,18 +1,35 @@
+#include <algorithm>
+#include <cmath>
 #include <iostream>
 
-// TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
+#include "mylib.hpp"
+
 int main()
 {
-    // TIP Press <shortcut actionId="RenameElement"/> when your caret is at the <b>lang</b> variable name to see how CLion can help you rename it.
-    auto lang = "C++";
-    std::cout << "Hello and welcome to " << lang << "!\n";
+    photonics::LatticeParams params;
+    params.lattice_constant = 0.42;
+    params.hole_radius = 0.29 * params.lattice_constant;
+    params.slab_thickness = 0.6 * params.lattice_constant;
 
-    for (int i = 1; i <= 5; i++)
+    const auto nodes = photonics::build_triangular_lattice(5, 4, params.lattice_constant);
+    const auto envelope_value = photonics::gaussian_envelope(0.0, params.lattice_constant * 0.1);
+
+    photonics::Diagnostics diag("Initialization");
+    diag.report(static_cast<double>(nodes.size()), "Lattice points");
+    diag.report(round(1e6 * envelope_value) / 1e6, "Gaussian envelope (center)");
+
+    std::cout << "Sample lattice nodes:\n";
+    const auto limit = std::min(nodes.size(), static_cast<std::size_t>(5));
+    for (std::size_t i = 0; i < limit; ++i)
     {
-        // TIP Press <shortcut actionId="Debug"/> to start debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.
-        std::cout << "i = " << i << std::endl;
+        const auto &[x, y] = nodes[i];
+        std::cout << "  - node " << (i + 1) << ": (" << x << ", " << y << ")\n";
     }
 
+    std::cout << "basic properties -> "
+              << "a=" << params.lattice_constant << " μm, "
+              << "R=" << params.hole_radius << " μm, "
+              << "T=" << params.slab_thickness << " μm\n";
+
     return 0;
-    // TIP See CLion help at <a href="https://www.jetbrains.com/help/clion/">jetbrains.com/help/clion/</a>. Also, you can try interactive lessons for CLion by selecting 'Help | Learn IDE Features' from the main menu.
 }
