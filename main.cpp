@@ -22,8 +22,8 @@ int main()
     const auto limit = std::min(nodes.size(), static_cast<std::size_t>(5));
     for (std::size_t i = 0; i < limit; ++i)
     {
-        const auto &[x, y] = nodes[i];
-        std::cout << "  - node " << (i + 1) << ": (" << x << ", " << y << ")\n";
+        const auto &node = nodes[i];
+        std::cout << "  - node " << (i + 1) << ": (" << node.first << ", " << node.second << ")\n";
     }
 
     std::cout << "basic properties -> "
