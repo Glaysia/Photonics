@@ -13,13 +13,25 @@
 - Q 추출: 링다운 신호를 Harminv로 피팅, Poynting 박스에서 방사 손실 채널 분리.
 - 후처리: 필드 스냅샷, k-공간 분석(필요 시 FFT), 파라미터 스윕 결과 정리.
 
+# 현재 상태/환경
+- MEEP 1.32.0-beta를 `~/.local`에 빌드·설치 완료, `meep.pc` 확인됨.
+- `PKG_CONFIG_PATH`, `LD_LIBRARY_PATH`에 `~/.local` 추가됨, CMake RPATH도 `~/.local/lib`로 설정.
+- C++ 바이너리에서 `#include <meep.hpp>` 및 `meep::linspace` 호출로 링크 검증 완료.
+
 # 구체적 TODO
-- [ ] MEEP C++ 프로젝트 스켈레톤: PML 두께, 시간 스텝, 해상도(픽셀/a) 기본값 정의.
+- [ ] MEEP C++ 시뮬레이션 스켈레톤: PML 두께, 시간 스텝, 해상도(픽셀/a) 기본값 정의.
 - [ ] 기하 생성기: a, r, t, Δx1/Δx2, r_edge를 입력으로 L3 구조 빌드.
 - [ ] 소스/모니터 배치: 가우시안 펄스(Ex/Ey) + Harminv 모니터 + 필드 스냅샷(중앙 평면).
 - [ ] Q 계산 파이프: Harminv 결과로 Q 계산, Poynting 플럭스 박스에서 z-방사/측방 분리.
 - [ ] 파라미터 스윕: Δx1/Δx2, r_edge를 소규모 그리드로 스윕하는 래퍼 작성.
 - [ ] 시각화: Python 또는 C++에서 필드/플럭스/스펙트럼 저장 및 플롯 스크립트 준비.
 
+# 모듈화 제안 (클래스 단위)
+- `LatticeGeometry`: 삼각 격자/L3 결함/홀 변위·반경 설정 → MEEP geometry list 생성.
+- `SimulationConfig`: 격자상수/해상도/PML/시간스텝/블록 크기 등 공통 파라미터 관리, `meep::structure`/`meep::grid_volume` 초기화.
+- `SourceManager`: 가우시안 펄스/편광 설정, 소스 배치 및 초기화.
+- `MonitorSuite`: Harminv 링다운, Poynting 플럭스 박스, 필드 스냅샷 설정 + 데이터 수집.
+- `QAnalyzer`: Harminv 결과로 공진 주파수·Q 계산, 플럭스 분해(z/측방), 모드부피 계산.
+- `SweepRunner`(선택): Δx1/Δx2/r_edge 파라미터 스윕 실행 및 결과 저장(CSV/JSON).
 # 제외/보류
 - MFEM 기반 FEA 해석은 보류(필요 시 후속 단계에서 곡면/복잡 형상 정밀 해석용으로 별도 분기).
