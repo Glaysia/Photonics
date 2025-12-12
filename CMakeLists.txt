@@ -15,11 +15,17 @@ add_library(photonics_lattice STATIC lattice_geometry.cpp)
 target_include_directories(photonics_lattice PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(photonics_lattice PUBLIC ctlgeom)
 
+add_library(photonics_monitor_suite STATIC monitor_suite.cpp)
+target_include_directories(photonics_monitor_suite PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
 add_executable(Photonics main.cpp mylib.cpp)
-target_link_libraries(Photonics PRIVATE photonics_lattice)
+target_link_libraries(Photonics PRIVATE photonics_lattice photonics_monitor_suite)
 
 add_executable(lattice_geometry_test tests/lattice_geometry_test.cpp)
 target_link_libraries(lattice_geometry_test PRIVATE photonics_lattice)
+
+add_executable(monitor_suite_tests tests/monitor_suite_tests.cpp)
+target_link_libraries(monitor_suite_tests PRIVATE photonics_monitor_suite)
 
 if (PHOTONICS_ENABLE_MEEP)
     if (PKG_CONFIG_FOUND)
@@ -28,7 +34,7 @@ if (PHOTONICS_ENABLE_MEEP)
         endif()
         pkg_check_modules(MEEP QUIET meep)
         if (MEEP_FOUND)
-            foreach(target photonics_lattice Photonics lattice_geometry_test)
+            foreach(target photonics_lattice photonics_monitor_suite Photonics lattice_geometry_test monitor_suite_tests)
                 target_include_directories(${target} PRIVATE ${MEEP_INCLUDE_DIRS})
                 target_link_libraries(${target} PRIVATE ${MEEP_LIBRARIES})
                 target_compile_options(${target} PRIVATE ${MEEP_CFLAGS_OTHER})
