@@ -27,6 +27,9 @@ target_include_directories(photonics_simulation_config PUBLIC ${CMAKE_CURRENT_SO
 add_library(photonics_source_manager STATIC source_manager.cpp)
 target_include_directories(photonics_source_manager PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
+add_library(photonics_sweep_runner STATIC sweep_runner.cpp)
+target_include_directories(photonics_sweep_runner PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
 add_executable(Photonics main.cpp mylib.cpp)
 target_link_libraries(Photonics PRIVATE
     photonics_lattice
@@ -34,6 +37,7 @@ target_link_libraries(Photonics PRIVATE
     photonics_q_analyzer
     photonics_simulation_config
     photonics_source_manager
+    photonics_sweep_runner
 )
 
 add_executable(lattice_geometry_test tests/lattice_geometry_test.cpp)
