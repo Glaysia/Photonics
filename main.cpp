@@ -1,40 +1,48 @@
 
-#include "mylib.hpp"
+#include "monitor_suite.hpp"
+
+#include <iomanip>
+#include <iostream>
 
 int main()
 {
-    photonics::LatticeParams params;
-    params.lattice_constant = 0.42;
-    params.hole_radius = 0.29 * params.lattice_constant;
-    params.slab_thickness = 0.6 * params.lattice_constant;
+    const double a = 0.42;          // lattice constant (μm)
+    const double slab_thickness = 0.6 * a;
+    const double pml = 0.2 * a;
 
-    const auto nodes = photonics::build_triangular_lattice(5, 4, params.lattice_constant);
-    const auto envelope_value = photonics::gaussian_envelope(0.0, params.lattice_constant * 0.1);
+    photonics::MonitorConfig config;
+    config.cell = {5.0 * a, 5.0 * a, slab_thickness + 0.4 * a, meep::D3};
+    config.pml_thickness = pml;
+    config.monitor_thickness = 0.05 * a;
 
-    photonics::Diagnostics diag("Initialization");
-    diag.report(static_cast<double>(nodes.size()), "Lattice points");
-    diag.report(round(1e6 * envelope_value) / 1e6, "Gaussian envelope (center)");
+    photonics::MonitorSuite suite(config);
+    suite.setup_default_flux_boxes();
+    suite.setup_default_field_snapshot(meep::Z, 0.0);
+    suite.add_harminv(meep::vec(0.0, 0.0, 0.0), 0.25, 0.05, meep::Ez);
 
-    std::cout << "Sample lattice nodes:\n";
-    const auto limit = std::min(nodes.size(), static_cast<std::size_t>(5));
-    for (std::size_t i = 0; i < limit; ++i)
+    std::cout << "Monitor suite initialized with cell sizes (μm): "
+              << config.cell.sx << " x " << config.cell.sy << " x " << config.cell.sz << "\n";
+    std::cout << "Flux monitor count: " << suite.flux_monitors().size() << "\n";
+    std::cout << "Field snapshots: " << suite.field_monitors().size()
+              << ", Harminv probes: " << suite.harminv_monitors().size() << "\n";
+
+    for (const auto &flux : suite.flux_monitors())
     {
-        const auto &node = nodes[i];
-        std::cout << "  - node " << (i + 1) << ": (" << node.first << ", " << node.second << ")\n";
+        const auto center = flux.region.center();
+        std::cout << "  - " << flux.label << " center (μm) -> "
+                  << "x=" << std::fixed << std::setprecision(4) << center.in_direction(meep::X) << ", "
+                  << "y=" << center.in_direction(meep::Y) << ", "
+                  << "z=" << center.in_direction(meep::Z) << "\n";
     }
 
-    std::cout << "basic properties -> "
-              << "a=" << params.lattice_constant << " μm, "
-              << "R=" << params.hole_radius << " μm, "
-              << "T=" << params.slab_thickness << " μm\n";
+    const auto mode_summary = photonics::MonitorSuite::summarize_mode(0.25, 1e-3, 1.0);
+    const auto flux_summary = photonics::MonitorSuite::summarize_flux(1.0, 0.9, 0.1, 0.1, 0.05, 0.05);
 
-    const auto freqs = meep::linspace(0.10, 0.14, 5);
-    std::cout << "MEEP linspace sample:";
-    for (const auto f : freqs)
-    {
-        std::cout << " " << f;
-    }
-    std::cout << "\n";
+    std::cout << "Mode summary -> freq=" << mode_summary.frequency << " decay=" << mode_summary.decay_rate
+              << " Q=" << mode_summary.q << "\n";
+    std::cout << "Flux summary (top/bottom/lat): "
+              << flux_summary.top << " / " << flux_summary.bottom << " / "
+              << (flux_summary.left + flux_summary.right + flux_summary.front + flux_summary.back) << "\n";
 
     return 0;
 }
