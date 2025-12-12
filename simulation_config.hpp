@@ -7,11 +7,8 @@
 #include <tuple>
 #include <vector>
 
-namespace photonics
-{
-
-// Mirror geometry aliases so users can pass/receive meep::geometric_object in
-// a conventional namespace instead of the C API types.
+// Mirror geometry aliases so callers can use the familiar meep::geometric_object
+// signatures instead of the C API names exposed by the headers.
 namespace meep
 {
 using geometric_object = ::geometric_object;
@@ -19,6 +16,8 @@ using geometric_object_list = ::geometric_object_list;
 using material_type = meep_geom::material_type;
 } // namespace meep
 
+namespace photonics
+{
 // Parameters are expressed in units of the lattice constant a unless noted.
 struct SimulationParameters
 {
