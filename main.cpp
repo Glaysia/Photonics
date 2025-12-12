@@ -1,40 +1,39 @@
 
-#include "mylib.hpp"
+#include "lattice_geometry.hpp"
+
+#include <iomanip>
+#include <iostream>
 
 int main()
 {
-    photonics::LatticeParams params;
-    params.lattice_constant = 0.42;
-    params.hole_radius = 0.29 * params.lattice_constant;
-    params.slab_thickness = 0.6 * params.lattice_constant;
+    photonics::LatticeGeometry geom{};
+    const auto holes = geom.generate_holes();
+    const auto geometry = geom.build_geometry();
 
-    const auto nodes = photonics::build_triangular_lattice(5, 4, params.lattice_constant);
-    const auto envelope_value = photonics::gaussian_envelope(0.0, params.lattice_constant * 0.1);
+    std::cout << "Lattice geometry built with "
+              << holes.size() << " holes and "
+              << geometry.size() << " geometric objects (including slab)"
+              << "\n";
 
-    photonics::Diagnostics diag("Initialization");
-    diag.report(static_cast<double>(nodes.size()), "Lattice points");
-    diag.report(round(1e6 * envelope_value) / 1e6, "Gaussian envelope (center)");
+    const auto params = geom.params();
+    std::cout << "Defaults: a=" << params.lattice_constant << " μm, "
+              << "r=" << params.hole_radius << " μm, "
+              << "t=" << params.slab_thickness << " μm, "
+              << "Δx1=" << params.delta_x1 << " μm, "
+              << "Δx2=" << params.delta_x2 << " μm"
+              << "\n";
 
-    std::cout << "Sample lattice nodes:\n";
-    const auto limit = std::min(nodes.size(), static_cast<std::size_t>(5));
+    std::cout << "First five hole centers (x, y, r):\n";
+    const std::size_t limit = std::min<std::size_t>(5, holes.size());
     for (std::size_t i = 0; i < limit; ++i)
     {
-        const auto &node = nodes[i];
-        std::cout << "  - node " << (i + 1) << ": (" << node.first << ", " << node.second << ")\n";
+        const auto &h = holes[i];
+        std::cout << "  [" << (i + 1) << "] "
+                  << std::fixed << std::setprecision(6)
+                  << h.center.x() << ", " << h.center.y()
+                  << " (r=" << h.radius << ")"
+                  << "\n";
     }
-
-    std::cout << "basic properties -> "
-              << "a=" << params.lattice_constant << " μm, "
-              << "R=" << params.hole_radius << " μm, "
-              << "T=" << params.slab_thickness << " μm\n";
-
-    const auto freqs = meep::linspace(0.10, 0.14, 5);
-    std::cout << "MEEP linspace sample:";
-    for (const auto f : freqs)
-    {
-        std::cout << " " << f;
-    }
-    std::cout << "\n";
 
     return 0;
 }
