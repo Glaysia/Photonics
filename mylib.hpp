@@ -1,5 +1,10 @@
 #ifndef MYLIB_HPP
 #define MYLIB_HPP
+#include <algorithm>
+#include <cmath>
+#include <iostream>
+
+#include <meep.hpp>
 
 #include <cstddef>
 #include <string>

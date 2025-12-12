@@ -1,6 +1,3 @@
-#include <algorithm>
-#include <cmath>
-#include <iostream>
 
 #include "mylib.hpp"
 
@@ -30,6 +27,14 @@ int main()
               << "a=" << params.lattice_constant << " μm, "
               << "R=" << params.hole_radius << " μm, "
               << "T=" << params.slab_thickness << " μm\n";
+
+    const auto freqs = meep::linspace(0.10, 0.14, 5);
+    std::cout << "MEEP linspace sample:";
+    for (const auto f : freqs)
+    {
+        std::cout << " " << f;
+    }
+    std::cout << "\n";
 
     return 0;
 }
