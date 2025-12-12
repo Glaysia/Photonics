@@ -11,7 +11,11 @@ find_package(PkgConfig QUIET)
 option(PHOTONICS_ENABLE_MEEP "Enable MEEP (FDTD) integration via pkg-config" ON)
 set(PHOTONICS_MEEP_PKGCONFIG_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/meep/install/lib/pkgconfig" CACHE PATH "Path to directory containing meep.pc (set after building/installing MEEP)")
 
-add_executable(Photonics main.cpp mylib.cpp)
+add_executable(Photonics
+    main.cpp
+    mylib.cpp
+    simulation_config.cpp
+)
 
 target_include_directories(Photonics PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 

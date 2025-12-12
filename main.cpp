@@ -1,40 +1,51 @@
+#include "simulation_config.hpp"
 
-#include "mylib.hpp"
+#include <cassert>
+#include <cmath>
+#include <iostream>
+#include <tuple>
 
 int main()
 {
-    photonics::LatticeParams params;
-    params.lattice_constant = 0.42;
-    params.hole_radius = 0.29 * params.lattice_constant;
-    params.slab_thickness = 0.6 * params.lattice_constant;
+    photonics::SimulationParameters params; // defaults anchored to a = 0.42 µm
+    photonics::SimulationConfig config(params);
 
-    const auto nodes = photonics::build_triangular_lattice(5, 4, params.lattice_constant);
-    const auto envelope_value = photonics::gaussian_envelope(0.0, params.lattice_constant * 0.1);
+    const meep::grid_volume gv = config.make_grid_volume();
+    const auto [expected_nx, expected_ny, expected_nz] = config.expected_grid_points();
+    assert(gv.nx() == expected_nx);
+    assert(gv.ny() == expected_ny);
+    assert(gv.nz() == expected_nz);
 
-    photonics::Diagnostics diag("Initialization");
-    diag.report(static_cast<double>(nodes.size()), "Lattice points");
-    diag.report(round(1e6 * envelope_value) / 1e6, "Gaussian envelope (center)");
+    const auto pml_region = config.make_pml();
+    assert(pml_region.check_ok(gv));
 
-    std::cout << "Sample lattice nodes:\n";
-    const auto limit = std::min(nodes.size(), static_cast<std::size_t>(5));
-    for (std::size_t i = 0; i < limit; ++i)
-    {
-        const auto &node = nodes[i];
-        std::cout << "  - node " << (i + 1) << ": (" << node.first << ", " << node.second << ")\n";
-    }
+    const meep::structure structure = config.make_structure({});
+    assert(std::abs(structure.dt - config.timestep()) < 1e-12);
+    assert(std::abs(structure.Courant - config.courant()) < 1e-12);
 
-    std::cout << "basic properties -> "
-              << "a=" << params.lattice_constant << " μm, "
-              << "R=" << params.hole_radius << " μm, "
-              << "T=" << params.slab_thickness << " μm\n";
+    const double ax_um = config.cell_size_x_in_a() * config.lattice_constant_um();
+    const double ay_um = config.cell_size_y_in_a() * config.lattice_constant_um();
+    const double az_um = config.cell_size_z_in_a() * config.lattice_constant_um();
+
+    std::cout << "SimulationConfig defaults (units: a; physical units shown in µm):\n";
+    std::cout << "  - lattice constant a: " << config.lattice_constant_um() << " µm\n";
+    std::cout << "  - resolution: " << config.resolution_px_per_a() << " px/a\n";
+    std::cout << "  - cell (a): " << config.cell_size_x_in_a() << " x " << config.cell_size_y_in_a()
+              << " x " << config.cell_size_z_in_a() << "\n";
+    std::cout << "  - cell (µm): " << ax_um << " x " << ay_um << " x " << az_um << "\n";
+    std::cout << "  - PML thickness: " << config.pml_thickness_in_a() << " a per side\n";
+    std::cout << "  - timestep dt: " << config.timestep() << " (a/c units)\n";
+
+    std::cout << "grid_volume points: " << gv.nx() << " x " << gv.ny() << " x " << gv.nz() << "\n";
 
     const auto freqs = meep::linspace(0.10, 0.14, 5);
-    std::cout << "MEEP linspace sample:";
+    std::cout << "linspace sample:";
     for (const auto f : freqs)
     {
         std::cout << " " << f;
     }
     std::cout << "\n";
 
+    std::cout << "All assertions passed for SimulationConfig.\n";
     return 0;
 }
