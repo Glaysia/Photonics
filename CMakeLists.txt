@@ -18,14 +18,21 @@ target_link_libraries(photonics_lattice PUBLIC ctlgeom)
 add_library(photonics_monitor_suite STATIC monitor_suite.cpp)
 target_include_directories(photonics_monitor_suite PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
+add_library(photonics_q_analyzer STATIC q_analyzer.cpp)
+target_include_directories(photonics_q_analyzer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
 add_executable(Photonics main.cpp mylib.cpp)
-target_link_libraries(Photonics PRIVATE photonics_lattice photonics_monitor_suite)
+target_link_libraries(Photonics PRIVATE photonics_lattice photonics_monitor_suite photonics_q_analyzer)
 
 add_executable(lattice_geometry_test tests/lattice_geometry_test.cpp)
 target_link_libraries(lattice_geometry_test PRIVATE photonics_lattice)
 
 add_executable(monitor_suite_tests tests/monitor_suite_tests.cpp)
 target_link_libraries(monitor_suite_tests PRIVATE photonics_monitor_suite)
+
+# Unit-test style executable for QAnalyzer.
+add_executable(q_analyzer_test q_analyzer_test.cpp)
+target_link_libraries(q_analyzer_test PRIVATE photonics_q_analyzer)
 
 if (PHOTONICS_ENABLE_MEEP)
     if (PKG_CONFIG_FOUND)
