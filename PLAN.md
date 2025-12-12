@@ -14,17 +14,24 @@
 - 후처리: 필드 스냅샷, k-공간 분석(필요 시 FFT), 파라미터 스윕 결과 정리.
 
 # 현재 상태/환경
-- MEEP 1.32.0-beta를 `~/.local`에 빌드·설치 완료, `meep.pc` 확인됨.
-- `PKG_CONFIG_PATH`, `LD_LIBRARY_PATH`에 `~/.local` 추가됨, CMake RPATH도 `~/.local/lib`로 설정.
-- C++ 바이너리에서 `#include <meep.hpp>` 및 `meep::linspace` 호출로 링크 검증 완료.
+- MEEP 1.31.0을 `external/meep/install`에 MPI+OpenMP 옵션으로 빌드/설치 완료, `meep.pc` 확인됨.
+- CMake가 `-DPHOTONICS_MEEP_PKGCONFIG_DIR=external/meep/install/lib/pkgconfig`를 사용하도록 설정.
+- C++ 바이너리 빌드 완료(`main.cpp` 스켈레톤 포함), 테스트는 미등록 상태.
 
 # 구체적 TODO
-- [ ] MEEP C++ 시뮬레이션 스켈레톤: PML 두께, 시간 스텝, 해상도(픽셀/a) 기본값 정의.
-- [ ] 기하 생성기: a, r, t, Δx1/Δx2, r_edge를 입력으로 L3 구조 빌드.
-- [ ] 소스/모니터 배치: 가우시안 펄스(Ex/Ey) + Harminv 모니터 + 필드 스냅샷(중앙 평면).
+- [x] MEEP C++ 시뮬레이션 스켈레톤: PML 두께, 시간 스텝, 해상도(픽셀/a) 기본값 정의.
+- [x] 기하 생성기: a, r, t, Δx1/Δx2, r_edge를 입력으로 L3 구조 빌드.
+- [x] 소스/모니터 배치: 가우시안 펄스(Ex/Ey) + Harminv 모니터 + 필드 스냅샷(중앙 평면).
 - [ ] Q 계산 파이프: Harminv 결과로 Q 계산, Poynting 플럭스 박스에서 z-방사/측방 분리.
 - [ ] 파라미터 스윕: Δx1/Δx2, r_edge를 소규모 그리드로 스윕하는 래퍼 작성.
 - [ ] 시각화: Python 또는 C++에서 필드/플럭스/스펙트럼 저장 및 플롯 스크립트 준비.
+
+# 개선/남은 작업
+- Harminv/플럭스 연동: 현재 main.cpp는 dummy Harminv 결과만 사용. meep `fields`/`harminv`/플럭스 박스를 연결해 Q 파이프 완성.
+- PML/격자 안정성 검증: Courant/해상도에 대한 안정 조건 확인 및 단위 테스트 추가.
+- SweepRunner 콜백 구현: 구조 생성→시뮬레이션→`SimulationSummary` 반환 루프 작성 후 CSV/JSON 저장.
+- 시각화 파이프: 필드 스냅샷(HDF5) + 주파수 스펙트럼/플럭스 플롯용 Python 스크립트 추가.
+- MPI-HDF5 필요 시 설치 후 Meep 재컴파일(현재 HDF5 serial만 링크).
 
 # 모듈화 제안 (클래스 단위)
 - `LatticeGeometry`: 삼각 격자/L3 결함/홀 변위·반경 설정 → MEEP geometry list 생성.
