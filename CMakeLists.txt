@@ -24,12 +24,16 @@ target_include_directories(photonics_q_analyzer PUBLIC ${CMAKE_CURRENT_SOURCE_DI
 add_library(photonics_simulation_config STATIC simulation_config.cpp)
 target_include_directories(photonics_simulation_config PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
+add_library(photonics_source_manager STATIC source_manager.cpp)
+target_include_directories(photonics_source_manager PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
 add_executable(Photonics main.cpp mylib.cpp)
 target_link_libraries(Photonics PRIVATE
     photonics_lattice
     photonics_monitor_suite
     photonics_q_analyzer
     photonics_simulation_config
+    photonics_source_manager
 )
 
 add_executable(lattice_geometry_test tests/lattice_geometry_test.cpp)
@@ -40,6 +44,9 @@ target_link_libraries(monitor_suite_tests PRIVATE photonics_monitor_suite)
 
 add_executable(q_analyzer_test q_analyzer_test.cpp)
 target_link_libraries(q_analyzer_test PRIVATE photonics_q_analyzer)
+
+add_executable(source_manager_tests source_manager_test.cpp)
+target_link_libraries(source_manager_tests PRIVATE photonics_source_manager)
 
 if (PHOTONICS_ENABLE_MEEP)
     if (PKG_CONFIG_FOUND)
@@ -52,9 +59,11 @@ if (PHOTONICS_ENABLE_MEEP)
                 photonics_lattice
                 photonics_monitor_suite
                 photonics_simulation_config
+                photonics_source_manager
                 Photonics
                 lattice_geometry_test
                 monitor_suite_tests
+                source_manager_tests
             )
                 target_include_directories(${target} PRIVATE ${MEEP_INCLUDE_DIRS})
                 target_link_libraries(${target} PRIVATE ${MEEP_LIBRARIES})
