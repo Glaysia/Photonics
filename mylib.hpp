@@ -6,8 +6,6 @@
 #include <utility>
 #include <vector>
 
-#include <mfem.hpp>
-
 namespace photonics
 {
 struct LatticeParams
