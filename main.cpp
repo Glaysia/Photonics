@@ -1,40 +1,38 @@
 
-#include "mylib.hpp"
+#include "q_analyzer.hpp"
+
+#include <algorithm>
+#include <iomanip>
+#include <iostream>
+#include <vector>
 
 int main()
 {
-    photonics::LatticeParams params;
-    params.lattice_constant = 0.42;
-    params.hole_radius = 0.29 * params.lattice_constant;
-    params.slab_thickness = 0.6 * params.lattice_constant;
+    photonics::QAnalyzer analyzer;
 
-    const auto nodes = photonics::build_triangular_lattice(5, 4, params.lattice_constant);
-    const auto envelope_value = photonics::gaussian_envelope(0.0, params.lattice_constant * 0.1);
+    // Dummy Harminv-like modes; pick the dominant amplitude to compute Q.
+    const std::vector<photonics::HarminvMode> modes = {
+        {0.120, 1.5e-4, 0.2},
+        {0.115, 8.0e-5, 1.0},
+        {0.098, 1.0e-3, 0.05},
+    };
 
-    photonics::Diagnostics diag("Initialization");
-    diag.report(static_cast<double>(nodes.size()), "Lattice points");
-    diag.report(round(1e6 * envelope_value) / 1e6, "Gaussian envelope (center)");
+    const auto q_res = analyzer.compute_quality(modes);
+    std::cout << "Resonance frequency: " << std::fixed << std::setprecision(6) << q_res.resonance_frequency
+              << " (1/a)\n";
+    std::cout << "Decay rate: " << q_res.decay_rate << "\n";
+    std::cout << "Quality factor: " << q_res.quality_factor << "\n";
 
-    std::cout << "Sample lattice nodes:\n";
-    const auto limit = std::min(nodes.size(), static_cast<std::size_t>(5));
-    for (std::size_t i = 0; i < limit; ++i)
-    {
-        const auto &node = nodes[i];
-        std::cout << "  - node " << (i + 1) << ": (" << node.first << ", " << node.second << ")\n";
-    }
+    // Flux decomposition (top/bottom/side).
+    const auto flux = analyzer.flux_components(1.2, 0.8, 0.5);
+    std::cout << "Flux totals (up, down, side, total): " << flux.upward << ", " << flux.downward << ", "
+              << flux.lateral << ", " << flux.total() << "\n";
 
-    std::cout << "basic properties -> "
-              << "a=" << params.lattice_constant << " μm, "
-              << "R=" << params.hole_radius << " μm, "
-              << "T=" << params.slab_thickness << " μm\n";
-
-    const auto freqs = meep::linspace(0.10, 0.14, 5);
-    std::cout << "MEEP linspace sample:";
-    for (const auto f : freqs)
-    {
-        std::cout << " " << f;
-    }
-    std::cout << "\n";
+    // Mode volume example using energy integral and |E|max.
+    const auto volume = analyzer.compute_mode_volume(/*energy_integral=*/2.0,
+                                                     /*max_field_magnitude=*/0.5,
+                                                     /*relative_permittivity=*/12.0);
+    std::cout << "Mode volume (a^3): " << volume.mode_volume << "\n";
 
     return 0;
 }
