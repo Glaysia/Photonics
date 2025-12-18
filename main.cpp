@@ -339,7 +339,7 @@ int main(int argc, char **argv)
             }
         }
 
-        if (dump_colormap && is_master)
+        if (dump_colormap)
         {
             photonics::FieldSliceExportConfig fcfg{};
             fcfg.component = meep::Ey;
@@ -351,12 +351,15 @@ int main(int argc, char **argv)
 
             const std::string field_csv = dump_prefix + "_Ey_z0.csv";
             write_field_slice_csv(ensure_parent_dir(field_csv).string(), *res.fields, fcfg);
-            banner("Field Export");
-            std::cout << "Wrote: " << field_csv << "\n";
-            std::cout << "Plot with:\n";
-            std::cout << "  python3 tools/plot_field_csv.py --field " << field_csv << " --geometry " << dump_prefix
-                      << ".json --out " << dump_prefix << "_Ey_z0.png --title \""
-                      << (variant == "shifted" ? "Ey (shifted cavity)" : "Ey (baseline cavity)") << "\"\n";
+            if (is_master)
+            {
+                banner("Field Export");
+                std::cout << "Wrote: " << field_csv << "\n";
+                std::cout << "Plot with:\n";
+                std::cout << "  python3 tools/plot_field_csv.py --field " << field_csv << " --geometry " << dump_prefix
+                          << ".json --out " << dump_prefix << "_Ey_z0.png --title \""
+                          << (variant == "shifted" ? "Ey (shifted cavity)" : "Ey (baseline cavity)") << "\"\n";
+            }
         }
 
         if (measure_q)
