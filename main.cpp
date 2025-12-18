@@ -17,6 +17,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <ctime>
+#include <limits>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -1046,20 +1047,6 @@ int main(int argc, char **argv)
         return std::string("shifted");
     }();
 
-    photonics::SimulationConfig sim_config(sim_params);
-    const auto grid_points = sim_config.expected_grid_points();
-
-    if (is_master)
-    {
-        banner("Grid / Volume");
-        std::cout << "Cell (a units): " << sim_config.cell_size_x_in_a() << " x " << sim_config.cell_size_y_in_a()
-                  << " x " << sim_config.cell_size_z_in_a() << "\n";
-        std::cout << "Expected grid points: " << tuple_to_string(grid_points) << "\n";
-        std::cout << "Resolution: " << sim_config.resolution_px_per_a() << " px/a\n";
-        std::cout << "PML thickness: " << sim_config.pml_thickness_in_a() << " a\n";
-        std::cout << "Courant: " << sim_config.courant() << " (dt=" << sim_config.timestep() << ")\n";
-    }
-
     // Lattice + geometry for L3 defect.
     photonics::LatticeGeometryParams geom_params{};
     // Use normalized simulation units (a = 1). Physical scaling is applied after the fact.
@@ -1077,6 +1064,56 @@ int main(int argc, char **argv)
     photonics::LatticeGeometry geometry_builder(geom_params);
     const auto holes = geometry_builder.generate_holes();
     const auto geometry = geometry_builder.build_geometry();
+
+    // Ensure the simulation cell is large enough to contain the slab + holes + PML.
+    double min_x = std::numeric_limits<double>::infinity();
+    double max_x = -std::numeric_limits<double>::infinity();
+    double min_y = std::numeric_limits<double>::infinity();
+    double max_y = -std::numeric_limits<double>::infinity();
+    for (const auto &h : holes)
+    {
+        min_x = std::min(min_x, h.center.x());
+        max_x = std::max(max_x, h.center.x());
+        min_y = std::min(min_y, h.center.y());
+        max_y = std::max(max_y, h.center.y());
+    }
+
+    const double padding = geom_params.lattice_constant;
+    const double slab_x = (max_x - min_x) + 2.0 * padding;
+    const double slab_y = (max_y - min_y) + 2.0 * padding;
+    const double extra_margin = 0.5 * geom_params.lattice_constant; // small guard band inside PML
+    const double required_cell_x = slab_x + 2.0 * sim_params.pml_thickness_in_a + extra_margin;
+    const double required_cell_y = slab_y + 2.0 * sim_params.pml_thickness_in_a + extra_margin;
+
+    bool resized_cell = false;
+    if (sim_params.cell_size_x_in_a < required_cell_x)
+    {
+        sim_params.cell_size_x_in_a = required_cell_x;
+        resized_cell = true;
+    }
+    if (sim_params.cell_size_y_in_a < required_cell_y)
+    {
+        sim_params.cell_size_y_in_a = required_cell_y;
+        resized_cell = true;
+    }
+
+    photonics::SimulationConfig sim_config(sim_params);
+    const auto grid_points = sim_config.expected_grid_points();
+
+    if (is_master)
+    {
+        banner("Grid / Volume");
+        std::cout << "Cell (a units): " << sim_config.cell_size_x_in_a() << " x " << sim_config.cell_size_y_in_a()
+                  << " x " << sim_config.cell_size_z_in_a() << "\n";
+        std::cout << "Expected grid points: " << tuple_to_string(grid_points) << "\n";
+        std::cout << "Resolution: " << sim_config.resolution_px_per_a() << " px/a\n";
+        std::cout << "PML thickness: " << sim_config.pml_thickness_in_a() << " a\n";
+        std::cout << "Courant: " << sim_config.courant() << " (dt=" << sim_config.timestep() << ")\n";
+        if (resized_cell)
+        {
+            std::cout << "Note: cell expanded to fit geometry + padding + PML\n";
+        }
+    }
 
     if (is_master)
     {

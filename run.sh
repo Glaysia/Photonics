@@ -2,7 +2,7 @@
 
 set -euo pipefail
 # Default to 12 ranks unless overridden.
-NP=4
+NP=10
 # Default to 1 OpenMP thread per rank to avoid oversubscription.
 export OMP_NUM_THREADS=${OMP_NUM_THREADS:-1}
 
