@@ -4,6 +4,8 @@ project(Photonics)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Keep user-local libs available, but ensure project-provided MEEP (if used)
+# takes precedence at runtime.
 set(CMAKE_BUILD_RPATH "$ENV{HOME}/.local/lib")
 set(CMAKE_INSTALL_RPATH "$ENV{HOME}/.local/lib")
 
@@ -34,6 +36,10 @@ add_library(photonics_geometry_export STATIC geometry_export.cpp)
 target_include_directories(photonics_geometry_export PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(photonics_geometry_export PUBLIC photonics_lattice)
 
+add_library(photonics_simulation_runner STATIC simulation_runner.cpp)
+target_include_directories(photonics_simulation_runner PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(photonics_simulation_runner PUBLIC photonics_simulation_config photonics_source_manager)
+
 add_executable(Photonics main.cpp mylib.cpp)
 target_link_libraries(Photonics PRIVATE
     photonics_lattice
@@ -43,6 +49,7 @@ target_link_libraries(Photonics PRIVATE
     photonics_source_manager
     photonics_sweep_runner
     photonics_geometry_export
+    photonics_simulation_runner
 )
 
 add_executable(lattice_geometry_test tests/lattice_geometry_test.cpp)
@@ -70,6 +77,7 @@ if (PHOTONICS_ENABLE_MEEP)
                 set(MEEP_FOUND TRUE)
                 set(MEEP_INCLUDE_DIRS "${PHOTONICS_MEEP_PREFIX}/include")
                 set(MEEP_LIBRARIES "${PHOTONICS_MEEP_PREFIX}/lib/libmeep.so")
+                set(MEEP_LIBRARY_DIRS "${PHOTONICS_MEEP_PREFIX}/lib")
                 message(STATUS "Using bundled MEEP from ${PHOTONICS_MEEP_PREFIX} (pkg-config module not found).")
             endif()
         endif()
@@ -80,6 +88,7 @@ if (PHOTONICS_ENABLE_MEEP)
                 photonics_simulation_config
                 photonics_source_manager
                 photonics_geometry_export
+                photonics_simulation_runner
                 Photonics
                 lattice_geometry_test
                 monitor_suite_tests
@@ -88,6 +97,14 @@ if (PHOTONICS_ENABLE_MEEP)
                 target_include_directories(${target} PRIVATE ${MEEP_INCLUDE_DIRS})
                 target_link_libraries(${target} PRIVATE ${MEEP_LIBRARIES})
                 target_compile_options(${target} PRIVATE ${MEEP_CFLAGS_OTHER})
+                if (MEEP_LIBRARY_DIRS)
+                    # Prefer the selected MEEP libdir over ~/.local/lib so we don't
+                    # accidentally pick up a different libmeep at runtime.
+                    set_target_properties(${target} PROPERTIES
+                        BUILD_RPATH "${MEEP_LIBRARY_DIRS};$ENV{HOME}/.local/lib"
+                        INSTALL_RPATH "${MEEP_LIBRARY_DIRS};$ENV{HOME}/.local/lib"
+                    )
+                endif()
                 if (MEEP_LDFLAGS)
                     target_link_options(${target} PRIVATE ${MEEP_LDFLAGS})
                 endif()
