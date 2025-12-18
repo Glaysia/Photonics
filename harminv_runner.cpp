@@ -60,11 +60,12 @@ std::vector<HarminvMode> run_harminv(const std::vector<std::complex<double>> &sa
         HarminvMode m;
         m.frequency = freq_re[static_cast<std::size_t>(i)];
         m.decay_rate = std::abs(freq_im[static_cast<std::size_t>(i)]);
-        m.amplitude = std::abs(amps[static_cast<std::size_t>(i)]);
+        const auto a = amps[static_cast<std::size_t>(i)];
+        m.amplitude = std::abs(a);
+        m.phase = std::arg(a);
         modes.push_back(m);
     }
     return modes;
 }
 
 } // namespace photonics
-

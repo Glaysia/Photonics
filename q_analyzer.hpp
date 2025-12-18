@@ -16,6 +16,7 @@ struct HarminvMode
     double frequency = 0.0;   // Resonant frequency (in units of 1/a).
     double decay_rate = 0.0;  // Exponential decay rate (imag part), positive for loss.
     double amplitude = 0.0;   // Optional weighting for selecting the dominant mode.
+    double phase = 0.0;       // Phase of the complex amplitude (radians).
 };
 
 // Resulting resonance metrics.
