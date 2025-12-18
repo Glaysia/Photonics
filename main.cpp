@@ -1,5 +1,6 @@
 
 #include "lattice_geometry.hpp"
+#include "geometry_export.hpp"
 #include "monitor_suite.hpp"
 #include "q_analyzer.hpp"
 #include "simulation_config.hpp"
@@ -10,6 +11,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <filesystem>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -28,6 +30,43 @@ std::string tuple_to_string(const std::tuple<int, int, int> &t)
     std::ostringstream oss;
     oss << std::get<0>(t) << " × " << std::get<1>(t) << " × " << std::get<2>(t);
     return oss.str();
+}
+
+bool has_flag(int argc, char **argv, const std::string &flag)
+{
+    for (int i = 1; i < argc; ++i)
+    {
+        if (std::string(argv[i]) == flag)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::string arg_value(int argc, char **argv, const std::string &flag)
+{
+    for (int i = 1; i < argc; ++i)
+    {
+        if (std::string(argv[i]) == flag)
+        {
+            if (i + 1 < argc && argv[i + 1][0] != '-')
+            {
+                return argv[i + 1];
+            }
+            return {};
+        }
+    }
+    return {};
+}
+
+std::filesystem::path ensure_parent_dir(std::filesystem::path path)
+{
+    if (path.has_parent_path())
+    {
+        std::filesystem::create_directories(path.parent_path());
+    }
+    return path;
 }
 } // namespace
 
@@ -73,6 +112,37 @@ int main(int argc, char **argv)
     std::cout << "Holes (after defect removal): " << holes.size() << "\n";
     std::cout << "Sample hole: center=(" << holes.front().center.x() << ", " << holes.front().center.y()
               << "), r=" << holes.front().radius << "\n";
+
+    if (has_flag(argc, argv, "--export-geometry"))
+    {
+        const std::string basename = [&]() {
+            const auto v = arg_value(argc, argv, "--export-geometry");
+            return v.empty() ? std::string("out/l3_geometry") : v;
+        }();
+
+        photonics::GeometryMetadata meta{};
+        meta.params = geom_params;
+        meta.holes = holes;
+        meta.units = "um";
+
+        const auto csv_path = ensure_parent_dir(basename + ".csv");
+        const auto json_path = ensure_parent_dir(basename + ".json");
+        const auto svg_path = ensure_parent_dir(basename + ".svg");
+
+        photonics::write_holes_csv(csv_path.string(), holes);
+        photonics::write_geometry_json(json_path.string(), meta);
+        photonics::write_holes_svg(svg_path.string(), holes);
+
+        std::cout << "Exported geometry:\n";
+        std::cout << "  - " << csv_path << "\n";
+        std::cout << "  - " << json_path << "\n";
+        std::cout << "  - " << svg_path << "\n";
+
+        if (has_flag(argc, argv, "--export-only"))
+        {
+            return EXIT_SUCCESS;
+        }
+    }
 
     // Structure + sources.
     meep::structure structure = sim_config.make_structure(geometry);

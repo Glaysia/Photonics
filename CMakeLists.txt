@@ -30,6 +30,10 @@ target_include_directories(photonics_source_manager PUBLIC ${CMAKE_CURRENT_SOURC
 add_library(photonics_sweep_runner STATIC sweep_runner.cpp)
 target_include_directories(photonics_sweep_runner PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
+add_library(photonics_geometry_export STATIC geometry_export.cpp)
+target_include_directories(photonics_geometry_export PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(photonics_geometry_export PUBLIC photonics_lattice)
+
 add_executable(Photonics main.cpp mylib.cpp)
 target_link_libraries(Photonics PRIVATE
     photonics_lattice
@@ -38,6 +42,7 @@ target_link_libraries(Photonics PRIVATE
     photonics_simulation_config
     photonics_source_manager
     photonics_sweep_runner
+    photonics_geometry_export
 )
 
 add_executable(lattice_geometry_test tests/lattice_geometry_test.cpp)
@@ -58,12 +63,23 @@ if (PHOTONICS_ENABLE_MEEP)
             set(ENV{PKG_CONFIG_PATH} "${PHOTONICS_MEEP_PKGCONFIG_DIR}:$ENV{PKG_CONFIG_PATH}")
         endif()
         pkg_check_modules(MEEP QUIET meep)
+        if (NOT MEEP_FOUND)
+            set(PHOTONICS_MEEP_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/external/meep/install")
+            if (EXISTS "${PHOTONICS_MEEP_PREFIX}/include/meep.hpp" AND
+                (EXISTS "${PHOTONICS_MEEP_PREFIX}/lib/libmeep.so" OR EXISTS "${PHOTONICS_MEEP_PREFIX}/lib/libmeep.a"))
+                set(MEEP_FOUND TRUE)
+                set(MEEP_INCLUDE_DIRS "${PHOTONICS_MEEP_PREFIX}/include")
+                set(MEEP_LIBRARIES "${PHOTONICS_MEEP_PREFIX}/lib/libmeep.so")
+                message(STATUS "Using bundled MEEP from ${PHOTONICS_MEEP_PREFIX} (pkg-config module not found).")
+            endif()
+        endif()
         if (MEEP_FOUND)
             foreach(target
                 photonics_lattice
                 photonics_monitor_suite
                 photonics_simulation_config
                 photonics_source_manager
+                photonics_geometry_export
                 Photonics
                 lattice_geometry_test
                 monitor_suite_tests
