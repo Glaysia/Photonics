@@ -1,0 +1,61 @@
+{
+  "timestamp_utc": "2025-12-18T16:08:34Z",
+  "argv": ["./build/Photonics", "--shifted", "--dump", "out/shift_long", "--run-until-after-sources", "400"],
+  "mpi": {"np": 4, "rank": 0},
+  "omp": {"num_threads": 1},
+  "variant": "shifted",
+  "dump_prefix": "out/shift_long",
+  "simulation_parameters": {
+    "lattice_constant_um": 0.420000000000,
+    "resolution_px_per_a": 20.000000000000,
+    "cell_size_x_in_a": 10.000000000000,
+    "cell_size_y_in_a": 8.000000000000,
+    "cell_size_z_in_a": 5.000000000000,
+    "pml_thickness_in_a": 1.000000000000,
+    "courant": 0.500000000000
+  },
+  "source_config": {
+    "center_frequency": 0.260000000000,
+    "bandwidth": 0.050000000000,
+    "cutoff": 5.000000000000,
+    "amplitude": 1.000000000000,
+    "components": ["ex", "ey"],
+    "positions": [[0.000000000000, 0.000000000000, 0.000000000000]]
+  },
+  "run": {
+    "dt": 0.025000000000,
+    "steps": 24000,
+    "last_source_time": 200.000000000000,
+    "stop_time": 600.000000000000
+  },
+  "time_series": {
+    "sample_every_steps": 10,
+    "sample_dt": 0.250000000000,
+    "start_time": 200.000000000000,
+    "num_samples": 1601
+  },
+  "harminv": {
+    "fmin": 0.160000000000,
+    "fmax": 0.360000000000,
+    "maxbands": 50,
+    "q_threshold": 100.000000000000,
+    "selected_frequency": 0.260000000000,
+    "selection_method": "fallback_center_frequency"
+  },
+  "dft_field_map": {
+    "component": "ey",
+    "plane": {"normal": "Z", "coordinate": 0.0},
+    "frequency": 0.260000000000,
+    "after_sources_time": 50.000000000000
+  },
+  "flux_spectrum": {
+    "fmin": 0.160000000000,
+    "fmax": 0.360000000000,
+    "nf": 200
+  },
+  "snapshots": [
+    {"target_time": 100.000000000000, "path": "out/shift_long_Ey_z0_t100.csv"},
+    {"target_time": 200.000000000000, "path": "out/shift_long_Ey_z0_t200.csv"},
+    {"target_time": 400.000000000000, "path": "out/shift_long_Ey_z0_t400.csv"}
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "probe": {
+    "label": "center",
+    "component": "ey",
+    "point": [0.000000000000, 0.000000000000, 0.000000000000],
+    "dt": 0.025000000000,
+    "sample_every_steps": 10,
+    "sample_dt": 0.250000000000,
+    "start_time": 200.000000000000,
+    "num_samples": 1601
+  },
+  "config": {
+    "fmin": 0.160000000000,
+    "fmax": 0.360000000000,
+    "maxbands": 50,
+    "q_threshold": 100.000000000000
+  },
+  "selected": {
+    "method": "fallback_center_frequency",
+    "used_fallback": true,
+    "frequency": 0.260000000000
+  },
+  "modes": [
+  ]
+}
