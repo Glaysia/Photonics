@@ -4,6 +4,22 @@ project(Photonics)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Allow overriding the prefix where local dependencies (libctl, libharminv, etc.)
+# have been installed.  The defaults match the build instructions under external/.
+set(PHOTONICS_LOCAL_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/external/local"
+    CACHE PATH "Prefix containing locally built dependencies (libctl, harminv, ...)")
+set(PHOTONICS_LOCAL_INCLUDE_DIR "${PHOTONICS_LOCAL_PREFIX}/include")
+set(PHOTONICS_LOCAL_LIB_DIR "${PHOTONICS_LOCAL_PREFIX}/lib")
+set(PHOTONICS_LOCAL_LIB64_DIR "${PHOTONICS_LOCAL_PREFIX}/lib64")
+
+# Ensure libctl headers/libraries (and other local deps) are visible to every target.
+if (PHOTONICS_LOCAL_INCLUDE_DIR)
+    include_directories(${PHOTONICS_LOCAL_INCLUDE_DIR})
+endif()
+if (PHOTONICS_LOCAL_LIB_DIR OR PHOTONICS_LOCAL_LIB64_DIR)
+    link_directories(${PHOTONICS_LOCAL_LIB_DIR} ${PHOTONICS_LOCAL_LIB64_DIR})
+endif()
+
 # Keep user-local libs available, but ensure project-provided MEEP (if used)
 # takes precedence at runtime.
 set(CMAKE_BUILD_RPATH "$ENV{HOME}/.local/lib")
