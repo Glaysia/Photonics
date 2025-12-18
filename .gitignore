@@ -40,3 +40,6 @@ nature02063.pdf
 
 *.png
 *.svg
+nature02063.txt
+out/
+*.csv

@@ -40,6 +40,9 @@ add_library(photonics_geometry_export STATIC geometry_export.cpp)
 target_include_directories(photonics_geometry_export PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(photonics_geometry_export PUBLIC photonics_lattice)
 
+add_library(photonics_field_slice_export STATIC field_slice_export.cpp)
+target_include_directories(photonics_field_slice_export PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
 add_library(photonics_simulation_runner STATIC simulation_runner.cpp)
 target_include_directories(photonics_simulation_runner PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(photonics_simulation_runner PUBLIC photonics_simulation_config photonics_source_manager)
@@ -54,6 +57,7 @@ target_link_libraries(Photonics PRIVATE
     photonics_source_manager
     photonics_sweep_runner
     photonics_geometry_export
+    photonics_field_slice_export
     photonics_simulation_runner
 )
 
@@ -94,6 +98,7 @@ if (PHOTONICS_ENABLE_MEEP)
                 photonics_simulation_config
                 photonics_source_manager
                 photonics_geometry_export
+                photonics_field_slice_export
                 photonics_simulation_runner
                 Photonics
                 lattice_geometry_test

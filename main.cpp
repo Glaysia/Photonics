@@ -1,6 +1,7 @@
 
 #include "lattice_geometry.hpp"
 #include "geometry_export.hpp"
+#include "field_slice_export.hpp"
 #include "monitor_suite.hpp"
 #include "q_analyzer.hpp"
 #include "harminv_runner.hpp"
@@ -81,6 +82,32 @@ std::filesystem::path ensure_parent_dir(std::filesystem::path path)
     return path;
 }
 
+std::string lower_ascii(std::string s)
+{
+    for (char &c : s)
+    {
+        if (c >= 'A' && c <= 'Z')
+        {
+            c = static_cast<char>(c - 'A' + 'a');
+        }
+    }
+    return s;
+}
+
+bool parse_bool(const std::string &v, bool fallback)
+{
+    const std::string s = lower_ascii(v);
+    if (s == "1" || s == "true" || s == "yes" || s == "on")
+    {
+        return true;
+    }
+    if (s == "0" || s == "false" || s == "no" || s == "off")
+    {
+        return false;
+    }
+    return fallback;
+}
+
 int parse_int_env(const char *name)
 {
     const char *v = std::getenv(name);
@@ -141,6 +168,27 @@ int main(int argc, char **argv)
     sim_params.pml_thickness_in_a = 1.0;
     sim_params.courant = 0.5;
 
+    const std::string variant = [&]() {
+        if (has_flag(argc, argv, "--baseline") || has_flag(argc, argv, "--unshifted"))
+        {
+            return std::string("baseline");
+        }
+        if (has_flag(argc, argv, "--shifted"))
+        {
+            return std::string("shifted");
+        }
+        const auto v = lower_ascii(arg_value(argc, argv, "--variant"));
+        if (v == "baseline" || v == "unshifted" || v == "0")
+        {
+            return std::string("baseline");
+        }
+        if (v == "shifted" || v == "1")
+        {
+            return std::string("shifted");
+        }
+        return std::string("shifted");
+    }();
+
     photonics::SimulationConfig sim_config(sim_params);
     const auto grid_points = sim_config.expected_grid_points();
 
@@ -161,9 +209,13 @@ int main(int argc, char **argv)
     geom_params.lattice_constant = 1.0;
     geom_params.hole_radius = 0.29 * geom_params.lattice_constant;
     geom_params.slab_thickness = 0.6 * geom_params.lattice_constant;
-    geom_params.delta_x1 = 0.15 * geom_params.lattice_constant;
-    geom_params.delta_x2 = 0.05 * geom_params.lattice_constant;
-    geom_params.edge_radius = geom_params.hole_radius - 0.01 * geom_params.lattice_constant;
+    geom_params.delta_x1 = (variant == "shifted") ? (0.15 * geom_params.lattice_constant) : 0.0;
+    geom_params.delta_x2 = (variant == "shifted") ? (0.05 * geom_params.lattice_constant) : 0.0;
+    geom_params.edge_radius = geom_params.hole_radius;
+    if (const auto v = arg_value(argc, argv, "--edge-radius"); !v.empty())
+    {
+        geom_params.edge_radius = std::stod(v);
+    }
 
     photonics::LatticeGeometry geometry_builder(geom_params);
     const auto holes = geometry_builder.generate_holes();
@@ -187,7 +239,7 @@ int main(int argc, char **argv)
         photonics::GeometryMetadata meta{};
         meta.params = geom_params;
         meta.holes = holes;
-        meta.units = "um";
+        meta.units = "a";
 
         const auto csv_path = ensure_parent_dir(basename + ".csv");
         const auto json_path = ensure_parent_dir(basename + ".json");
@@ -208,6 +260,39 @@ int main(int argc, char **argv)
         }
     }
 
+    const std::string dump_prefix = [&]() {
+        const auto v = arg_value(argc, argv, "--dump-colormap");
+        if (!v.empty())
+        {
+            return v;
+        }
+        if (has_flag(argc, argv, "--dump-colormap"))
+        {
+            return std::string("out/") + variant;
+        }
+        return std::string();
+    }();
+
+    if (is_master && !dump_prefix.empty())
+    {
+        photonics::GeometryMetadata meta{};
+        meta.params = geom_params;
+        meta.holes = holes;
+        meta.units = "a";
+
+        const auto csv_path = ensure_parent_dir(dump_prefix + ".csv");
+        const auto json_path = ensure_parent_dir(dump_prefix + ".json");
+        const auto svg_path = ensure_parent_dir(dump_prefix + ".svg");
+
+        photonics::write_holes_csv(csv_path.string(), holes);
+        photonics::write_geometry_json(json_path.string(), meta);
+        photonics::write_holes_svg(svg_path.string(), holes);
+        std::cout << "Exported geometry:\n";
+        std::cout << "  - " << csv_path << "\n";
+        std::cout << "  - " << json_path << "\n";
+        std::cout << "  - " << svg_path << "\n";
+    }
+
     // Sources.
     photonics::SourceManager source_manager;
     const auto sources = source_manager.build_sources();
@@ -220,7 +305,8 @@ int main(int argc, char **argv)
     }
 
     const bool measure_q = has_flag(argc, argv, "--measure-q");
-    if (has_flag(argc, argv, "--run-until-after-sources") || measure_q)
+    const bool dump_colormap = !dump_prefix.empty();
+    if (has_flag(argc, argv, "--run-until-after-sources") || measure_q || dump_colormap)
     {
         photonics::SimulationRunner runner;
         photonics::SimulationRunConfig run_cfg{};
@@ -251,6 +337,26 @@ int main(int argc, char **argv)
                 std::cout << "Sample dt: " << res.sample_dt << " (time units a/c)\n";
                 std::cout << "Samples: " << res.samples.size() << "\n";
             }
+        }
+
+        if (dump_colormap && is_master)
+        {
+            photonics::FieldSliceExportConfig fcfg{};
+            fcfg.component = meep::Ey;
+            fcfg.z = 0.0;
+            fcfg.nx = std::max(32, std::get<0>(grid_points));
+            fcfg.ny = std::max(32, std::get<1>(grid_points));
+            fcfg.sx = sim_config.cell_size_x_in_a();
+            fcfg.sy = sim_config.cell_size_y_in_a();
+
+            const std::string field_csv = dump_prefix + "_Ey_z0.csv";
+            write_field_slice_csv(ensure_parent_dir(field_csv).string(), *res.fields, fcfg);
+            banner("Field Export");
+            std::cout << "Wrote: " << field_csv << "\n";
+            std::cout << "Plot with:\n";
+            std::cout << "  python3 tools/plot_field_csv.py --field " << field_csv << " --geometry " << dump_prefix
+                      << ".json --out " << dump_prefix << "_Ey_z0.png --title \""
+                      << (variant == "shifted" ? "Ey (shifted cavity)" : "Ey (baseline cavity)") << "\"\n";
         }
 
         if (measure_q)
