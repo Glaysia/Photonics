@@ -28,9 +28,9 @@ namespace photonics
 struct SourceConfig
 {
     double center_frequency = 0.26;                  // in units of 1/a
-    double bandwidth = 0.05;                         // gaussian fwidth in 1/a
-    double cutoff = 5.0;                             // width multiplier for envelope taper
-    double amplitude = 1.0;                          // scalar applied to all sources
+    double bandwidth = 0.08;                         // gaussian fwidth in 1/a (wider to inject more energy)
+    double cutoff = 3.0;                             // width multiplier for envelope taper (shorter pulse)
+    double amplitude = 6.0;                          // scalar applied to all sources (stronger drive)
     std::vector<meep::component> components{meep::Ex,
                                             meep::Ey}; // TE-like defaults (in-plane E)
     std::vector<meep::vec> positions{meep::vec(0.0, 0.0, 0.0)};
