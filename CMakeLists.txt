@@ -23,6 +23,10 @@ target_include_directories(photonics_monitor_suite PUBLIC ${CMAKE_CURRENT_SOURCE
 add_library(photonics_q_analyzer STATIC q_analyzer.cpp)
 target_include_directories(photonics_q_analyzer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
+add_library(photonics_harminv_runner STATIC harminv_runner.cpp)
+target_include_directories(photonics_harminv_runner PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(photonics_harminv_runner PUBLIC photonics_q_analyzer)
+
 add_library(photonics_simulation_config STATIC simulation_config.cpp)
 target_include_directories(photonics_simulation_config PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -45,6 +49,7 @@ target_link_libraries(Photonics PRIVATE
     photonics_lattice
     photonics_monitor_suite
     photonics_q_analyzer
+    photonics_harminv_runner
     photonics_simulation_config
     photonics_source_manager
     photonics_sweep_runner
@@ -85,6 +90,7 @@ if (PHOTONICS_ENABLE_MEEP)
             foreach(target
                 photonics_lattice
                 photonics_monitor_suite
+                photonics_harminv_runner
                 photonics_simulation_config
                 photonics_source_manager
                 photonics_geometry_export

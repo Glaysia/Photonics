@@ -22,7 +22,7 @@ namespace photonics
 {
 struct LatticeGeometryParams
 {
-    double lattice_constant = 0.42;            // a [μm]
+    double lattice_constant = 1.0;            // lattice spacing in simulation units (typically a=1)
     double hole_radius = 0.29 * lattice_constant;
     double slab_thickness = 0.6 * lattice_constant;
     double delta_x1 = 0.15 * lattice_constant; // outward shift for nearest neighbors

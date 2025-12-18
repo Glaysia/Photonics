@@ -3,6 +3,7 @@
 #include "geometry_export.hpp"
 #include "monitor_suite.hpp"
 #include "q_analyzer.hpp"
+#include "harminv_runner.hpp"
 #include "simulation_config.hpp"
 #include "simulation_runner.hpp"
 #include "source_manager.hpp"
@@ -156,7 +157,8 @@ int main(int argc, char **argv)
 
     // Lattice + geometry for L3 defect.
     photonics::LatticeGeometryParams geom_params{};
-    geom_params.lattice_constant = sim_params.lattice_constant_um;
+    // Use normalized simulation units (a = 1). Physical scaling is applied after the fact.
+    geom_params.lattice_constant = 1.0;
     geom_params.hole_radius = 0.29 * geom_params.lattice_constant;
     geom_params.slab_thickness = 0.6 * geom_params.lattice_constant;
     geom_params.delta_x1 = 0.15 * geom_params.lattice_constant;
@@ -217,14 +219,24 @@ int main(int argc, char **argv)
         std::cout << "Bandwidth: " << source_manager.config().bandwidth << " (1/a)\n";
     }
 
-    if (has_flag(argc, argv, "--run-until-after-sources"))
+    const bool measure_q = has_flag(argc, argv, "--measure-q");
+    if (has_flag(argc, argv, "--run-until-after-sources") || measure_q)
     {
         photonics::SimulationRunner runner;
         photonics::SimulationRunConfig run_cfg{};
-        run_cfg.until_after_sources = 200.0;
+        run_cfg.until_after_sources = measure_q ? 50000.0 : 200.0;
         if (const auto v = arg_value(argc, argv, "--run-until-after-sources"); !v.empty())
         {
             run_cfg.until_after_sources = std::stod(v);
+        }
+
+        if (measure_q)
+        {
+            run_cfg.time_series.enabled = true;
+            run_cfg.time_series.point = meep::vec(0.0, 0.0, 0.0);
+            run_cfg.time_series.component = meep::Ey; // TE-like cavity mode is typically in-plane E
+            run_cfg.time_series.sample_every_steps = 10;
+            run_cfg.time_series.start_after_sources = 0.0;
         }
 
         const auto res = runner.run(sim_config, geometry, sources, run_cfg);
@@ -234,6 +246,36 @@ int main(int argc, char **argv)
             std::cout << "Last source time: " << res.last_source_time << "\n";
             std::cout << "Stop time: " << res.stop_time << "\n";
             std::cout << "Steps: " << res.steps << "\n";
+            if (measure_q)
+            {
+                std::cout << "Sample dt: " << res.sample_dt << " (time units a/c)\n";
+                std::cout << "Samples: " << res.samples.size() << "\n";
+            }
+        }
+
+        if (measure_q)
+        {
+            photonics::HarminvRunConfig hcfg{};
+            const double fc = source_manager.config().center_frequency;
+            const double bw = std::max(source_manager.config().bandwidth, 1e-6);
+            hcfg.fmin = fc - 2.0 * bw;
+            hcfg.fmax = fc + 2.0 * bw;
+            hcfg.maxbands = 40;
+            hcfg.q_threshold = 100.0;
+
+            const auto modes = photonics::run_harminv(res.samples, res.sample_dt, hcfg);
+            photonics::QAnalyzer analyzer;
+            const auto qres = analyzer.compute_quality(modes);
+
+            if (is_master)
+            {
+                banner("Harminv / Q");
+                std::cout << std::fixed << std::setprecision(9);
+                std::cout << "Search band: [" << hcfg.fmin << ", " << hcfg.fmax << "] (1/a)\n";
+                std::cout << "Modes found: " << modes.size() << "\n";
+                std::cout << "Resonance freq: " << qres.resonance_frequency << "  decay: " << qres.decay_rate
+                          << "  Q: " << qres.quality_factor << "\n";
+            }
         }
     }
 
@@ -256,25 +298,6 @@ int main(int argc, char **argv)
         std::cout << "Harminv probes: " << monitors.harminv_monitors().size() << "\n";
     }
 
-    // Dummy Harminv result to demonstrate Q extraction pipeline.
-    photonics::QAnalyzer analyzer;
-    const std::vector<photonics::HarminvMode> dummy_modes = {
-        {0.26, 2.0e-4, 1.0},
-        {0.24, 5.0e-4, 0.2},
-    };
-    const auto qres = analyzer.compute_quality(dummy_modes);
-    const auto flux = analyzer.flux_components(1.0, 0.8, 0.1);
-
-    if (is_master)
-    {
-        banner("Q Analysis (dummy data)");
-        std::cout << std::fixed << std::setprecision(6);
-        std::cout << "Resonance freq: " << qres.resonance_frequency << "  decay: " << qres.decay_rate
-                  << "  Q: " << qres.quality_factor << "\n";
-        std::cout << "Flux breakdown (top/bottom/lateral): " << flux.upward << " / " << flux.downward << " / "
-                  << flux.lateral << "\n";
-    }
-
     // Parameter sweep scaffold.
     photonics::SweepRunner sweeper;
     const auto grid = sweeper.make_grid({geom_params.delta_x1}, {geom_params.delta_x2}, {geom_params.edge_radius},
@@ -293,9 +316,9 @@ int main(int argc, char **argv)
     if (is_master)
     {
         banner("Next Steps");
-        std::cout << "- Replace dummy Harminv data with actual meep::harminv analysis on fields.\n";
-        std::cout << "- Add flux collection using MonitorSuite definitions (meep flux boxes) and feed into QAnalyzer.\n";
+        std::cout << "- Add flux collection (meep flux boxes) and feed into QAnalyzer for channel breakdown.\n";
         std::cout << "- Drive SweepRunner with a simulation callback that returns SimulationSummary per parameter set.\n";
+        std::cout << "- Increase rows/columns and check Q convergence vs resolution/PML/cell size.\n";
     }
 
     return EXIT_SUCCESS;

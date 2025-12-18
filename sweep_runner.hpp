@@ -11,7 +11,7 @@ namespace photonics
 
 struct SweepParameters
 {
-    double lattice_constant = 0.42;          // a (µm)
+    double lattice_constant = 1.0;          // a (simulation units)
     double delta_x1 = 0.15 * lattice_constant;
     double delta_x2 = 0.05 * lattice_constant;
     double hole_radius = 0.29 * lattice_constant;
