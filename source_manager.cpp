@@ -38,7 +38,7 @@ std::shared_ptr<meep::gaussian_src_time> SourceManager::make_time_profile() cons
     auto profile = std::make_shared<meep::gaussian_src_time>(config_.center_frequency,
                                                              fwidth,
                                                              config_.cutoff);
-    profile->is_integrated = true; // TE-like electric source by default
+    profile->is_integrated = config_.is_integrated;
     return profile;
 }
 

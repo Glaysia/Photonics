@@ -70,10 +70,12 @@ std::tuple<int, int, int> SimulationConfig::expected_grid_points() const
 
 meep::grid_volume SimulationConfig::make_grid_volume() const
 {
-    return meep::vol3d(params_.cell_size_x_in_a,
-                       params_.cell_size_y_in_a,
-                       params_.cell_size_z_in_a,
-                       params_.resolution_px_per_a);
+    meep::grid_volume gv = meep::vol3d(params_.cell_size_x_in_a,
+                                       params_.cell_size_y_in_a,
+                                       params_.cell_size_z_in_a,
+                                       params_.resolution_px_per_a);
+    gv.center_origin();
+    return gv;
 }
 
 meep::boundary_region SimulationConfig::make_pml() const

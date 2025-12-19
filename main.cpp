@@ -400,7 +400,9 @@ DumpSimulationResult run_dump_time_domain(const photonics::SimulationConfig &con
                                          double progress_interval_seconds,
                                          const std::vector<DumpProbe> &probes,
                                          int ts_stride,
-                                         double ts_start_after_sources)
+                                         double ts_start_after_sources,
+                                         int max_steps,
+                                         int trace_steps)
 {
     DumpSimulationResult result{};
 
@@ -514,6 +516,7 @@ DumpSimulationResult run_dump_time_domain(const photonics::SimulationConfig &con
     meep::dft_flux flux_bottom = fields.add_dft_flux(meep::Z, flux_region("flux-bottom"), result.flux.freq);
 
     const bool is_master = (process_rank() == 0);
+    const bool enable_trace = trace_steps > 0;
     using clock = std::chrono::steady_clock;
     const auto wall_start = clock::now();
     auto wall_last = wall_start;
@@ -522,10 +525,74 @@ DumpSimulationResult run_dump_time_domain(const photonics::SimulationConfig &con
     const double sim_time_start = fields.time();
     const double sim_time_total = std::max(result.stop_time - sim_time_start, 0.0);
 
+    auto trace_sample = [&](const std::string &tag) {
+        const auto ex = fields.get_field(meep::Ex, meep::vec(0.0, 0.0, 0.0), true);
+        const auto ey = fields.get_field(meep::Ey, meep::vec(0.0, 0.0, 0.0), true);
+        const auto ey_x = fields.get_field(meep::Ey, meep::vec(0.25, 0.0, 0.0), true);
+        const auto ey_y = fields.get_field(meep::Ey, meep::vec(0.0, 0.25, 0.0), true);
+        const auto dx = fields.get_field(meep::Dx, meep::vec(0.0, 0.0, 0.0), true);
+        const auto dy = fields.get_field(meep::Dy, meep::vec(0.0, 0.0, 0.0), true);
+        const auto hz = fields.get_field(meep::Hz, meep::vec(0.0, 0.0, 0.0), true);
+        if (is_master)
+        {
+            std::cout << std::setprecision(17);
+            std::cout << "[trace " << tag << "] t=" << fields.time()
+                      << " Ex=" << ex
+                      << " Ey=" << ey
+                      << " Ey(x+0.25)=" << ey_x
+                      << " Ey(y+0.25)=" << ey_y
+                      << " Dx=" << dx
+                      << " Dy=" << dy
+                      << " Hz=" << hz
+                      << "\n";
+            std::cout.flush();
+        }
+    };
+
+    if (enable_trace)
+    {
+        if (is_master)
+        {
+            std::cout << std::setprecision(17);
+            std::cout << "[trace init] dt=" << fields.dt
+                      << " last_source_time=" << result.last_source_time
+                      << " stop_time=" << result.stop_time
+                      << " source_is_integrated=" << (source_cfg.is_integrated ? "true" : "false")
+                      << " sources=" << sources.size()
+                      << " have(Ex)=" << (fields.have_component(meep::Ex) ? "true" : "false")
+                      << " have(Ey)=" << (fields.have_component(meep::Ey) ? "true" : "false")
+                      << " have(Dx)=" << (fields.have_component(meep::Dx) ? "true" : "false")
+                      << " have(Dy)=" << (fields.have_component(meep::Dy) ? "true" : "false")
+                      << "\n";
+            for (std::size_t i = 0; i < sources.size(); ++i)
+            {
+                const auto &src = sources[i];
+                const auto p = src.where.center();
+                std::cout << "  [trace source " << i << "] component=" << component_label(src.component)
+                          << " pos=(" << p.x() << "," << p.y() << "," << p.z() << ")"
+                          << " amp=" << src.amplitude;
+                if (src.time)
+                {
+                    const auto dip0 = src.time->dipole(0.0);
+                    const auto cur0 = src.time->current(0.0, fields.dt);
+                    std::cout << " dipole(t=0)=" << dip0 << " current(t=0)=" << cur0;
+                }
+                std::cout << "\n";
+            }
+            std::cout.flush();
+        }
+        trace_sample("t0");
+    }
+
     while (fields.time() + 0.5 * fields.dt < result.stop_time)
     {
         fields.step();
         ++result.steps;
+
+        if (enable_trace && result.steps <= trace_steps)
+        {
+            trace_sample("step" + std::to_string(result.steps));
+        }
 
         // Time series sampling (collective get_field; only rank 0 stores values).
         if (fields.time() >= result.time_series.start_time && (result.steps % result.time_series.sample_every_steps) == 0)
@@ -599,6 +666,11 @@ DumpSimulationResult run_dump_time_domain(const photonics::SimulationConfig &con
                 wall_last = wall_now;
                 steps_last = result.steps;
             }
+        }
+
+        if (max_steps > 0 && result.steps >= max_steps)
+        {
+            break;
         }
     }
 
@@ -926,6 +998,7 @@ void write_run_json(const std::string &path,
     out << "    \"bandwidth\": " << source_cfg.bandwidth << ",\n";
     out << "    \"cutoff\": " << source_cfg.cutoff << ",\n";
     out << "    \"amplitude\": " << source_cfg.amplitude << ",\n";
+    out << "    \"is_integrated\": " << (source_cfg.is_integrated ? "true" : "false") << ",\n";
     out << "    \"components\": [";
     for (std::size_t i = 0; i < source_cfg.components.size(); ++i)
     {
@@ -1204,6 +1277,18 @@ int main(int argc, char **argv)
 
     // Sources.
     photonics::SourceManager source_manager;
+    {
+        auto cfg = source_manager.config();
+        if (has_flag(argc, argv, "--source-integrated"))
+        {
+            cfg.is_integrated = true;
+        }
+        if (has_flag(argc, argv, "--source-current"))
+        {
+            cfg.is_integrated = false;
+        }
+        source_manager.set_config(cfg);
+    }
     const auto sources = source_manager.build_sources();
 
     if (is_master)
@@ -1211,6 +1296,7 @@ int main(int argc, char **argv)
         banner("Sources");
         std::cout << "Configured sources: " << sources.size() << " (components × positions)\n";
         std::cout << "Bandwidth: " << source_manager.config().bandwidth << " (1/a)\n";
+        std::cout << "Integrated: " << (source_manager.config().is_integrated ? "true" : "false") << "\n";
     }
 
     if (!dump_prefix.empty())
@@ -1235,6 +1321,28 @@ int main(int argc, char **argv)
                 banner("Dump");
             }
 
+            const bool debug_source = has_flag(argc, argv, "--debug-source");
+            int trace_steps = 0;
+            if (has_flag(argc, argv, "--trace-source") || debug_source)
+            {
+                trace_steps = 20;
+                const auto v = arg_value(argc, argv, debug_source ? "--debug-source" : "--trace-source");
+                if (!v.empty())
+                {
+                    trace_steps = std::max(1, std::stoi(v));
+                }
+            }
+
+            int max_steps = 0;
+            if (const auto v = arg_value(argc, argv, "--max-steps"); !v.empty())
+            {
+                max_steps = std::max(1, std::stoi(v));
+            }
+            if (debug_source && max_steps == 0)
+            {
+                max_steps = trace_steps > 0 ? trace_steps : 20;
+            }
+
             const DumpSimulationResult dump_run =
                 run_dump_time_domain(sim_config,
                                      geometry,
@@ -1247,7 +1355,18 @@ int main(int argc, char **argv)
                                      /*progress_interval_seconds=*/7.0,
                                      probes,
                                      /*ts_stride=*/10,
-                                     /*ts_start_after_sources=*/0.0);
+                                     /*ts_start_after_sources=*/0.0,
+                                     max_steps,
+                                     trace_steps);
+
+            if (debug_source)
+            {
+                if (is_master)
+                {
+                    std::cout << "Debug run completed after " << dump_run.steps << " steps; exiting early.\n";
+                }
+                return EXIT_SUCCESS;
+            }
 
             if (is_master)
             {

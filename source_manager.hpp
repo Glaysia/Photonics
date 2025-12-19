@@ -31,6 +31,7 @@ struct SourceConfig
     double bandwidth = 0.08;                         // gaussian fwidth in 1/a (wider to inject more energy)
     double cutoff = 3.0;                             // width multiplier for envelope taper (shorter pulse)
     double amplitude = 6.0;                          // scalar applied to all sources (stronger drive)
+    bool is_integrated = false;                      // match Meep Python default (current source)
     std::vector<meep::component> components{meep::Ex,
                                             meep::Ey}; // TE-like defaults (in-plane E)
     std::vector<meep::vec> positions{meep::vec(0.0, 0.0, 0.0)};
